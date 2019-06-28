@@ -9,14 +9,14 @@ import ImageLinkForm from "./components/ImageLinkForm/ImageLinkForm";
 import Rank from "./components/Rank/Rank";
 import FaceNames from "./components/FaceNames/FaceNames";
 import Modal from "./components/Modal/Modal";
-import Profile from "./components/Profile/Profile"
+import Profile from "./components/Profile/Profile";
 import "./App.css";
 
 const initalState = {
   input: "",
   imageUrl: "",
   boxes: [],
-  route: 'signin',
+  route: "signin",
   isSignedIn: false,
   isProfileOpen: false,
   user: {
@@ -33,6 +33,42 @@ class App extends Component {
   constructor() {
     super();
     this.state = initalState;
+  }
+
+  //Here we will check if there is a token in the session storage of the user
+  //if there is we will get the token to get the ID from our redis db
+  //Then we will get the user id and load our user and change the route to home
+  componentDidMount() {
+    const token = window.sessionStorage.getItem("token");
+    if (token) {
+      fetch("http://178.128.38.252:3000/signin", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token
+        }
+      })
+        .then(resp => resp.json())
+        .then(data => {
+          if (data && data.id) {
+            fetch(`http://178.128.38.252:3000/profile/${data.id}`, {
+              method: "get",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token
+              }
+            })
+              .then(resp => resp.json())
+              .then(user => {
+                if (user && user.email) {
+                  this.loadUser(user);
+                  this.onRouteChange("home");
+                }
+              });
+          }
+        })
+        .catch(console.log);
+    }
   }
 
   //This is a function, from where we retrieve in Register & Signin the user details
@@ -52,34 +88,41 @@ class App extends Component {
   //calculateFaceLocation() is to get the data about face location
   //And we do the calculations to get the location for the face <div>
   calculateFaceLocations = data => {
-    return data.outputs[0].data.regions.map(face => {
-      const clarifaiFace = face.region_info.bounding_box;
-      const image = document.getElementById("inputimage");
-      const width = Number(image.width);
-      const height = Number(image.height);
-      const person = face.data.concepts[0].name;
-      const probability = face.data.concepts[0].value;
+    if(data && data.outputs) {
 
-      return {
-        leftCol: clarifaiFace.left_col * width,
-        topRow: clarifaiFace.top_row * height,
-        rightCol: width - clarifaiFace.right_col * width,
-        bottomRow: height - clarifaiFace.bottom_row * height,
-        person: person,
-        probability: `${Math.floor(probability * 100)} %`
-      };
-    });
+      return data.outputs[0].data.regions.map(face => {
+        const clarifaiFace = face.region_info.bounding_box;
+        const image = document.getElementById("inputimage");
+        const width = Number(image.width);
+        const height = Number(image.height);
+        const person = face.data.concepts[0].name;
+        const probability = face.data.concepts[0].value;
+  
+        return {
+          leftCol: clarifaiFace.left_col * width,
+          topRow: clarifaiFace.top_row * height,
+          rightCol: width - clarifaiFace.right_col * width,
+          bottomRow: height - clarifaiFace.bottom_row * height,
+          person: person,
+          probability: `${Math.floor(probability * 100)} %`
+        };
+      });
+
+    }
+    return
   };
 
   //This is to store the cordinates of the FaceBox
   displayFaceBoxes = boxes => {
-    this.setState({ boxes: boxes });
+    if (boxes) {
+      this.setState({ boxes: boxes });
+    }
   };
 
   //This is to get the link
   onInputChange = event => {
     this.setState({ input: event.target.value });
-  };
+  }; 
 
   /* WE NOW HIDE THE API ON THE BACK-END, WE SEND THE INFO TO BACK END */
   /* AND WE RETRIEVE THAT INFORMATION BACK */
@@ -87,7 +130,11 @@ class App extends Component {
     this.setState({ imageUrl: this.state.input });
     fetch("http://178.128.38.252:3000/imageurl", {
       method: "post",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        //The Token we need to add to any protected route we're trying to access
+        Authorization: window.sessionStorage.getItem("token")
+      },
       body: JSON.stringify({
         input: this.state.input
       })
@@ -101,7 +148,10 @@ class App extends Component {
         if (response) {
           fetch("http://178.128.38.252:3000/image", {
             method: "put",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: window.sessionStorage.getItem("token")
+            },
             body: JSON.stringify({
               id: this.state.user.id
             })
@@ -131,8 +181,8 @@ class App extends Component {
     this.setState(prevState => ({
       ...prevState,
       isProfileOpen: !prevState.isProfileOpen
-    }))
-  }
+    }));
+  };
 
   render() {
     //Line bellow is to avoid that we write all the time "this.state.isSignedIn" for example
@@ -159,7 +209,16 @@ class App extends Component {
           toggleModal={this.toggleModal}
         />
 
-        {isProfileOpen && <Modal><Profile isProfileOpen={isProfileOpen} toggleModal={this.toggleModal} loadUser={this.loadUser} user={this.state.user} /> </Modal>}
+        {isProfileOpen && (
+          <Modal>
+            <Profile
+              isProfileOpen={isProfileOpen}
+              toggleModal={this.toggleModal}
+              loadUser={this.loadUser}
+              user={this.state.user}
+            />{" "}
+          </Modal>
+        )}
 
         {/* The default route is signin, in state above, however if we click on signin 
         it will route us to 'home' and render the other Components after -> : <- */}

@@ -31,11 +31,16 @@ class Profile extends React.Component {
   onProfileUpdate = (data) => {
       fetch(`http://178.128.38.252:3000/profile/${this.props.user.id}`, {
           method: 'post',
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: window.sessionStorage.getItem("token")
+          },
           body: JSON.stringify({ formInput: data })
       }). then(resp => {
+        if (resp.status === 200 || resp.status === 304) {
           this.props.toggleModal()
           this.props.loadUser({...this.props.user, ...data}) //data will overwirte whatever is in user and changed
+        }
       }).catch(console.log)
   }
 
