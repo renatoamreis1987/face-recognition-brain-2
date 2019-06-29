@@ -23,6 +23,7 @@ class Rank extends React.Component {
   }
   
   //This is to get the rank function from Amazon Lambda
+  // We sent the entries, and the function replies with the emojicon, that we render bellow as data.input
   generateEmoji = (entries) => {
     fetch(`https://0jzhxke112.execute-api.us-east-1.amazonaws.com/prod/rank?rank=${entries}`)
     .then(response => response.json())
