@@ -35,9 +35,9 @@ class App extends Component {
     this.state = initalState;
   }
 
-  //Here we will check if there is a token in the session storage of the user
+  //Here we will check if there is a token in the session storage of the user when we load the website
   //if there is we will get the token to get the ID from our redis db
-  //Then we will get the user id and load our user and change the route to home
+  //Then we will get the user id and load our user and change the route to home (to avoid to login process again)
   componentDidMount() {
     const token = window.sessionStorage.getItem("token");
     if (token) {
